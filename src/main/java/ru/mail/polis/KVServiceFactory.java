@@ -1,6 +1,8 @@
 package ru.mail.polis;
 
 import org.jetbrains.annotations.NotNull;
+import ru.mail.polis.Egorov.MyFileDAO;
+import ru.mail.polis.Egorov.MyService;
 
 import java.io.File;
 import java.io.IOException;
@@ -45,6 +47,6 @@ final class KVServiceFactory {
         }
 
         // TODO: Implement me
-        throw new UnsupportedOperationException("Implement me!");
+        return new MyService(port, new MyFileDAO(data));
     }
 }
