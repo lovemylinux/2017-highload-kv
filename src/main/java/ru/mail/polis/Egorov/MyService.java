@@ -1,5 +1,6 @@
 package ru.mail.polis.Egorov;
 
+import com.sun.net.httpserver.HttpContext;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import org.jetbrains.annotations.NotNull;
@@ -9,13 +10,15 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetSocketAddress;
+import java.rmi.server.ExportException;
+import java.util.NoSuchElementException;
 import java.util.concurrent.Executors;
 
 public class MyService implements KVService {
     private static final String PREFIX = "id=";
     private static final String STATUS_RESPONSE = "ONLINE";
-    @NotNull
-    private final HttpServer server;
+    private static final int HTTP_OK = 200, HTTP_NOT_FOUND = 404, HTTP_ERROR = 500;
+    @NotNull private final HttpServer server;
 
     @NotNull
     private static String extractId(@NotNull final String query) {
@@ -32,12 +35,12 @@ public class MyService implements KVService {
         ));
 
         this.server.createContext("/v0/status", http -> {
-            http.sendResponseHeaders(200, STATUS_RESPONSE.length());
+            http.sendResponseHeaders(HTTP_OK, STATUS_RESPONSE.length());
             http.getResponseBody().write(STATUS_RESPONSE.getBytes());
             http.close();
         });
 
-        this.server.createContext("/v0/entity", (HttpExchange http) -> {
+        final HttpContext context = this.server.createContext("/v0/entity", (HttpExchange http) -> {
             final String id;
 
             try {
@@ -56,14 +59,15 @@ public class MyService implements KVService {
 
             switch (http.getRequestMethod()) {
                 case "GET":
-
-                    if (dao.isDataExist(id)) {
-                        http.sendResponseHeaders(200, 0);
-                        http.getResponseBody().write(dao.get(id));
-                    } else {
-                        http.sendResponseHeaders(404, 0);
+                    try {
+                        byte[] value = dao.get(id);
+                        http.sendResponseHeaders(HTTP_OK, 0);
+                        http.getResponseBody().write(value);
+                    } catch (NoSuchElementException e) {
+                        http.sendResponseHeaders(HTTP_NOT_FOUND, 0);
+                    } catch (Exception e) {
+                        http.sendResponseHeaders(HTTP_ERROR, 0);
                     }
-
                     break;
 
                 case "DELETE":
@@ -88,7 +92,6 @@ public class MyService implements KVService {
                     } catch (IOException e) {
                         http.sendResponseHeaders(500, 0);
                     }
-
                     break;
 
                 default:
